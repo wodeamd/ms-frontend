@@ -1,61 +1,59 @@
 package ms.demo.front;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
-
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.URL;
 
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static spark.Spark.get;
+import static spark.Spark.port;
 
 
-@RestController
-@RequestMapping(value = "/frontend", produces = {APPLICATION_JSON_VALUE})
+
 public class FrontendController {
 
-    @Value("${worker.url}")
-    private String workerUrl;
-    @Autowired
-    private ObjectMapper objectMapper;
+    public static void main(String[] args) {
+        port(8070);
+        get("/", (req, res) -> "This is frontend worker:" + InetAddress.getLocalHost().getHostAddress().toString());
+        get("/frontend/hex", (req, res) -> {
+            String str =  req.queryParams("str");
+            return executePost("http://"
+//                    + System.getenv("WORKER")+
+                    + "localhost" +
+                    ":8071" + "/backend/hex", "str=" + str);
+        });
+    }
 
+    public static String executePost(String targetURL, String urlParameters) {
+        HttpURLConnection connection = null;
 
-
-    private RestTemplate restTemplate = new RestTemplate();
-
-    @RequestMapping(method = RequestMethod.GET)
-    public String defaultPage() {
         try {
-            return "This is frontend worker:" + InetAddress.getLocalHost().getHostAddress().toString();
+            //Create connection
+            URL url = new URL(targetURL + "?" + urlParameters);
+            connection = (HttpURLConnection) url.openConnection();
+
+            //Get Response
+            InputStream is = connection.getInputStream();
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is));
+            StringBuilder response = new StringBuilder(); // or StringBuffer if Java version 5+
+            String line;
+            while ((line = rd.readLine()) != null) {
+                response.append(line);
+                response.append('\r');
+            }
+            rd.close();
+            return response.toString();
         } catch (Exception e) {
             e.printStackTrace();
-            return "Error happen:" + e.getMessage();
+            return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
-
     }
-
-    @RequestMapping( value="/hex", method = RequestMethod.GET)
-    public String invokeCaculation(@RequestParam(name="str", required = true) String str) {
-        try {
-           return convert(str);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "Error when calculating:" + e.getMessage();
-        }
-
-
-    }
-
-    public String convert(String str) {
-        String url = this.workerUrl + "/backend/hex?str={str}";
-       return restTemplate.getForObject(url, String.class, str);
-    }
-
-
 
 
 }
