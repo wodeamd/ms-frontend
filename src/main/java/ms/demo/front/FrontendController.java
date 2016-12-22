@@ -20,9 +20,9 @@ public class FrontendController {
         get("/frontend/hex", (req, res) -> {
             String str =  req.queryParams("str");
             return executePost("http://"
-//                    + System.getenv("WORKER")+
-                    + "localhost" +
-                    ":8071" + "/backend/hex", "str=" + str);
+                    + System.getenv("WORKER")+
+//                    + "localhost" +
+                    ":8070" + "/backend/hex", "str=" + str);
         });
     }
 
